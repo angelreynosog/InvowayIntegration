@@ -478,6 +478,19 @@ codeunit 50100 "Ditech Integration"
         DownloadFromStream(InStream, '', '', '', FileName);
     end;
 
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Purch.-Post", 'OnAfterPostPurchaseDoc', '', false, false)]
+    local procedure OnAfterPostPurchaseDoc(PurchRcpHdrNo: Code[20])
+    var
+        PurchRcptHeader: Record "Purch. Rcpt. Header";
+        RecordRef: RecordRef;
+    begin
+
+        if PurchRcpHdrNo <> '' then
+            if PurchRcptHeader.Get(PurchRcpHdrNo) then
+                if not PurchRcptHeader."Ditech Invoway Timbrado" then
+                    ExecuteEInvoice(RecordRef, 2);
+    end;
+
 
     var
         DitechWebServicesSetup: Record "Ditech Web Services Setup";
