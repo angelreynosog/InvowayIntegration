@@ -126,7 +126,7 @@ codeunit 50100 "Ditech Integration"
                                     TextBuilder.Append('<referenciaItem>' + PurchaseLine."No." + '</referenciaItem>');
                                     TextBuilder.Append('<totalLinea>' + SetAmountFormat(PurchaseLine."Amount Including VAT") + '</totalLinea>');
                                     TextBuilder.Append('<unidadesLinea>' + SetAmountFormat(PurchaseLine.Quantity) + '</unidadesLinea>');
-                                    TextBuilder.Append('<unidadesLinea>' + SetAmountFormat(PurchaseLine."Amount Including VAT" - PurchaseLine.Amount) + '</unidadesLinea>');
+                                    TextBuilder.Append('<valorImpuestoLinea>' + SetAmountFormat(PurchaseLine."Amount Including VAT" - PurchaseLine.Amount) + '</valorImpuestoLinea>');
                                     TextBuilder.Append('</linea>');
                                 until PurchaseLine.Next() = 0;
                             end;
@@ -228,32 +228,36 @@ codeunit 50100 "Ditech Integration"
         HttpResponseMessage: HttpResponseMessage;
         Headers: HttpHeaders;
         HttpContent: HttpContent;
+        Base64Convert: Codeunit "Base64 Convert";
         ResponseText: Text;
+        AuthString: Text;
     begin
         if DitechWebServicesSetup."Show XML" then
             Message(TextBuilder.ToText());
 
         HttpContent.WriteFrom(TextBuilder.ToText());
         HttpContent.GetHeaders(Headers);
+
         Headers.Remove('Content-type');
-        Headers.Add('Content-type', 'text/xml');
+        Headers.Add('Content-type', 'application/json');
+        AuthString := StrSubstNo('%1:%2', DitechWebServicesSetup.User, DitechWebServicesSetup.Password);
+        AuthString := Base64Convert.ToBase64(AuthString);
+        AuthString := StrSubstNo('Basic %1', AuthString);
+        HttpClient.DefaultRequestHeaders().Add('Authorization', AuthString);
         case DocType of
             1:
                 begin
-                    Headers.Add('SOAPAction', 'setPO');
                     HttpRequestMessage.Content := HttpContent;
                     HttpRequestMessage.SetRequestUri(DitechWebServicesSetup."Web Address PO");
                 end;
             2:
                 begin
-                    Headers.Add('SOAPAction', 'setGR');
                     HttpRequestMessage.Content := HttpContent;
                     HttpRequestMessage.SetRequestUri(DitechWebServicesSetup."Web Address INV");
                 end;
 
         end;
         HttpRequestMessage.Method := 'POST';
-
         if HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then begin
             HttpResponseMessage.Content().ReadAs(ResponseText);
             InsertTracking(DocumentNo, DocType, ResponseText);
